@@ -99,7 +99,11 @@ class YOLODetectionDataset(BaseDataset):
         ori_shape = self.shapes[index]
         # `norm` means the coords are normalized.
         results = dict(
-            img_file=img_file, label=label, ori_shape=ori_shape, norm=True
+            img_file=img_file,
+            label=label,
+            ori_shape=ori_shape,
+            norm=True,
+            bbox_type="cxcywh",
         )
         if self.rect:
             results["target_shape"] = self.batch_shapes[self.batch_index[index]]
@@ -206,10 +210,7 @@ class YOLODetectionDataset(BaseDataset):
                 bboxes = np.zeros((0, 4), dtype=np.float32)
                 classes = np.zeros((0, 1), dtype=np.float32)
 
-            targets = dict(
-                gt_bboxes=bboxes,
-                gt_classes=classes,
-            )
+            targets = dict(gt_bboxes=bboxes, gt_classes=classes,)
             return img_path, targets, shape, nm, nf, ne, nc, msg
         except Exception as e:
             nc = 1
@@ -231,25 +232,12 @@ class YOLODetectionDataset(BaseDataset):
         with Pool(num_threads) as pool:
             pbar = tqdm(
                 pool.imap(
-                    self._check_image_label,
-                    zip(
-                        self.img_files,
-                        self.label_files,
-                    ),
+                    self._check_image_label, zip(self.img_files, self.label_files,),
                 ),
                 desc=desc,
                 total=len(self.img_files),
             )
-            for (
-                im_file,
-                l,
-                shape,
-                nm_f,
-                nf_f,
-                ne_f,
-                nc_f,
-                msg,
-            ) in pbar:
+            for (im_file, l, shape, nm_f, nf_f, ne_f, nc_f, msg,) in pbar:
                 nm += nm_f
                 nf += nf_f
                 ne += ne_f
@@ -438,9 +426,7 @@ class YOLOKeypointDataset(YOLODetectionDataset):
                 classes = np.zeros((0, 1), dtype=np.float32)
 
             targets = dict(
-                gt_bboxes=bboxes,
-                gt_classes=classes,
-                gt_keypoints=keypoints,
+                gt_bboxes=bboxes, gt_classes=classes, gt_keypoints=keypoints,
             )
             return img_path, targets, shape, nm, nf, ne, nc, msg
         except Exception as e:

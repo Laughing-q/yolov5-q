@@ -70,7 +70,7 @@ class Mosaic:
         for i, index in enumerate(random_indexes):
             # get the images
             if index == 0:
-                img, w_scale, h_scale = imrescale(
+                img = imrescale(
                     results["img"],
                     new_wh=(self.img_scale[1], self.img_scale[0]),
                     keep_ratio=True,
@@ -80,20 +80,16 @@ class Mosaic:
             elif num_neg > 0:
                 neg_index = random.choice(range(len(self.img_neg_files)))
                 img = cv2.imread(self.img_neg_files[neg_index])
-                img, w_scale, h_scale = imrescale(
-                    img,
-                    new_wh=(self.img_scale[1], self.img_scale[0]),
-                    keep_ratio=True,
-                    return_scale=True,
+                img = imrescale(
+                    img, new_wh=(self.img_scale[1], self.img_scale[0]), keep_ratio=True,
                 )
                 results_patch = None
                 num_neg -= 1
             else:
-                img, w_scale, h_scale = imrescale(
+                img = imrescale(
                     mix_results[index - 1]["img"],
                     new_wh=(self.img_scale[1], self.img_scale[0]),
                     keep_ratio=True,
-                    return_scale=True,
                 )
                 results_patch = deepcopy(mix_results[index - 1])
 
@@ -139,13 +135,15 @@ class Mosaic:
             padh = y1a - y1b
 
             if results_patch is not None:
-                results_patch = self._update_results(results_patch, padw, padh)
+                results_patch = self._update_results(results_patch, w, h, padw, padh)
                 mosaic_results.append(results_patch)
 
-    def _update_results(self, results, scale_w, scale_y, padw, padh):
+    def _update_results(self, results, img_w, img_h, padw, padh):
         """Update labels"""
+        bboxes = results["gt_bboxes"].convert(format="xyxy")
         if results["norm"]:
-            pass
+            bboxes.denormalize(img_w, img_h)
+            bboxes.add_offset(offset=(padw, padh, padw, padh))
         else:
             pass
 

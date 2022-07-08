@@ -1,5 +1,6 @@
 from ..builder import PIPELINES
 from yolov5.utils.segment import resample_segments
+from yolov5.core import Bboxes
 import cv2
 import numpy as np
 
@@ -35,6 +36,7 @@ class LoadAnnotations:
             from relative value to absolute value.
             Default: False.
     """
+
     def __init__(
         self,
         with_label=True,
@@ -42,12 +44,18 @@ class LoadAnnotations:
         with_seg=False,
         with_keypoint=False,
         denorm=False,
+        bbox_type="cxcywh",
     ) -> None:
+        assert bbox_type in [
+            "cxcywh",
+            "xyxy",
+        ], f"Support `bbox_type` 'cxcywh' or 'xyxy', but got {bbox_type}"
         self.with_label = with_label
         self.with_bbox = with_bbox
         self.with_seg = with_seg
         self.with_keypoint = with_keypoint
         self.denorm = denorm
+        self.bbox_type = bbox_type
 
     def __call__(self, results):
         """Call function to load multiple types annotations.
@@ -59,6 +67,12 @@ class LoadAnnotations:
             dict: The dict contains loaded bounding box, label, mask and
                 semantic segmentation annotations.
         """
+        bbox_type = results.get("bbox_type", None)
+        assert bbox_type in [
+            "cxcywh",
+            "xyxy",
+            "ltwh",
+        ], f"Support `bbox_type` 'cxcywh', 'xyxy' and 'ltwh', but got {bbox_type}"
         if self.denorm:
             results["norm"] = False
         if self.with_bbox:
@@ -79,12 +93,13 @@ class LoadAnnotations:
             result (dict)
         """
         # (N, 4)
-        bboxes = results["label"].copy()
+        bboxes = results["label"]["gt_bboxes"].copy()
+        bboxes = Bboxes(bboxes, format=results["bbox_type"])
+        results.pop("bbox_type")
         num_bboxes = len(bboxes)
         if self.denorm and num_bboxes > 0:
             h, w = results["ori_shape"][:2]
-            bboxes[:, 0::2] *= w
-            bboxes[:, 1::2] *= h
+            bboxes.denormalize(w, h)
         results["gt_bboxes"] = bboxes
         return results
 
@@ -110,13 +125,14 @@ class LoadAnnotations:
         # and N is the number of instances.
         segments = results["label"]["gt_segments"].copy()
         # list[np.array(500, 2)] * N
-        segments = resample_segments(segments, n=500)
-        # (N, 500, 2)
-        segments = np.stack(segments, dim=0)
-        if self.denorm and len(segments) > 0:
-            h, w = results["ori_shape"][:2]
-            segments[..., 0] *= w
-            segments[..., 1] *= h
+        if len(segments) > 0:
+            segments = resample_segments(segments, n=500)
+            # (N, 500, 2)
+            segments = np.stack(segments, dim=0)
+            if self.denorm:
+                h, w = results["ori_shape"][:2]
+                segments[..., 0] *= w
+                segments[..., 1] *= h
         results["gt_segments"] = segments
         return segments
 
