@@ -97,7 +97,10 @@ class YOLODetectionDataset(BaseDataset):
         img_file = self.img_files[index]
         label = self.labels[index]
         ori_shape = self.shapes[index]
-        results = dict(img_file=img_file, label=label, ori_shape=ori_shape)
+        # `norm` means the coords are normalized.
+        results = dict(
+            img_file=img_file, label=label, ori_shape=ori_shape, norm=True
+        )
         if self.rect:
             results["target_shape"] = self.batch_shapes[self.batch_index[index]]
         return self.pipeline(results)
@@ -399,14 +402,12 @@ class YOLOKeypointDataset(YOLODetectionDataset):
                     labels = [
                         x.split() for x in f.read().strip().splitlines() if len(x)
                     ]
+                    # xyxy, (N, nl, 2)
                     keypoints = np.array(
                         [x[5:] for x in labels], dtype=np.float32
-                    ).reshape(
-                        len(labels), -1, 2
-                    )  # xyxy, (N, nl, 2)
-                    labels = np.array(
-                        [x[:5] for x in labels], dtype=np.float32
-                    )  # cls, xywh
+                    ).reshape(len(labels), -1, 2)
+                    # cls, xywh
+                    labels = np.array([x[:5] for x in labels], dtype=np.float32)
                 if len(labels):
                     assert all(
                         len(l) == 5 for l in labels

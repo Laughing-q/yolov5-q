@@ -1,7 +1,7 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import collections
 
-from mmcv.utils import build_from_cfg
+from lqcv import build_from_config
 
 from ..builder import PIPELINES
 
@@ -20,7 +20,7 @@ class Compose:
         self.transforms = []
         for transform in transforms:
             if isinstance(transform, dict):
-                transform = build_from_cfg(transform, PIPELINES)
+                transform = build_from_config(transform, PIPELINES)
                 self.transforms.append(transform)
             elif callable(transform):
                 self.transforms.append(transform)

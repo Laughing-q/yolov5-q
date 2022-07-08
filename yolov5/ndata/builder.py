@@ -6,3 +6,4 @@ PIPELINES = Registry("pipeline")
 
 def build_datasets(cfg):
     return build_from_config(cfg, DATASETS)
+
