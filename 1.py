@@ -131,6 +131,34 @@
 # print(nsegment[0].shape)
 # print(nsegment)
 
-import random
-print(random.choices(range(0), k=0))
-print(random.choice(range(10)))
+# import random
+# print(random.choices(range(0), k=0))
+# print(random.choice(range(10)))
+
+import pycocotools.mask as maskUtils
+import numpy as np
+import cv2
+
+def polygon_to_bitmap(polygons, height, width):
+    """Convert masks from the form of polygons to bitmaps.
+
+    Args:
+        polygons (list[ndarray]): masks in polygon representation
+        height (int): mask height
+        width (int): mask width
+
+    Return:
+        ndarray: the converted masks in bitmap representation
+    """
+    rles = maskUtils.frPyObjects(polygons, height, width)
+    rle = maskUtils.merge(rles)
+    bitmap_mask = maskUtils.decode(rle).astype(bool)
+    return bitmap_mask
+
+polygon = [np.array([0, 0, 0, 50, 50, 50]), np.array([50, 50, 50, 100, 100, 100])]
+# polygon = np.array([[0, 0, 0, 50, 50, 50], [50, 50, 50, 100, 100, 100]])
+print(list(polygon))
+bitmap = polygon_to_bitmap(list(polygon), 100, 100).astype(np.uint8) * 255
+print(bitmap)
+cv2.imshow("p", bitmap)
+cv2.waitKey(0)

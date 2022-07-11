@@ -8,6 +8,7 @@ anchors = [
 ]
 
 img_size = (640, 640)
+dataset_type = "YOLODetectionDataset"
 
 # model settings
 model = dict(
@@ -25,4 +26,42 @@ model = dict(
         strides=[8, 16, 32],
         in_channels=[int(256 * wid_mul), int(512 * wid_mul), int(1024 * wid_mul)],
     ),
+)
+
+train_pipeline = dict(
+    dict(type="Mosaic", img_scale=img_size, pad_value=114.0),
+    dict(
+        type="RandomPerspective",
+        degrees=10,
+        translate=0.1,
+        scale=0.1,
+        shear=10,
+        perspective=0.0,
+        area_thr=0.2,
+        border=(-img_size[0] // 2, -img_size[1] // 2),
+    ),
+    dict(type="RandomHSV", hgain=0.5, sgain=0.5, vgain=0.5),
+    dict(type="RandomFlip", flip_ratio=0.5, direction="vertical"),
+    dict(type="RandomFlip", flip_ratio=0.5, direction="horizontal"),
+    dict(type="Resize", img_scale=img_size, keep_ratio=True),
+    dict(
+        type="Pad",
+        img_scale=img_size,
+        center_pad=True,
+        pad_value=114,
+    ),
+    dict(type="FilterAnnotations", wh_thr=2, ar_thr=20),
+    dict(type="FormatBundle", bbox_type="cxcywh", coord_norm=True),
+)
+
+train_dataset = dict(
+    type="MultiImageMixDataset",
+    dataset=dict(
+        type=dataset_type,
+        pipeline=[
+            dict(type="LoadImageFromFile", to_float=False),
+            dict(type="LoadAnnotations", with_bbox=True),
+        ],
+    ),
+    pipeline=train_pipeline,
 )

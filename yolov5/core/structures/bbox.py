@@ -6,6 +6,9 @@ from lqcv.bbox import (
     ltwh2xywh,
     ltwh2xyxy,
 )
+from typing import List
+from lqcv.utils import to_4tuple
+import numpy as np
 
 # `xyxy` means left top and right bottom
 # `cxcywh` means center x, center y and width, height(yolo format)
@@ -73,21 +76,37 @@ class Bboxes:
         area = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1])
         return area
 
-    def denormalize(self, w, h):
-        assert (self.bboxes <= 1.0).all()
-        self.bboxes[:, 0::2] *= w
-        self.bboxes[:, 1::2] *= h
+    # def denormalize(self, w, h):
+    #     assert (self.bboxes <= 1.0).all()
+    #     self.bboxes[:, 0::2] *= w
+    #     self.bboxes[:, 1::2] *= h
+    #
+    # def normalize(self, w, h):
+    #     assert (self.bboxes > 1.0).any()
+    #     self.bboxes[:, 0::2] /= w
+    #     self.bboxes[:, 1::2] /= h
 
-    def normalize(self, w, h):
-        assert (self.bboxes > 1.0).any()
-        self.bboxes[:, 0::2] /= w
-        self.bboxes[:, 1::2] /= h
-
-    def add_offset(self, offset):
+    def mul(self, scale):
         """
         Args:
-            offset (tuple | List): the offset for four coords.
+            scale (tuple | List | int): the scale for four coords.
         """
+        if isinstance(scale, int):
+            scale = to_4tuple(scale)
+        assert isinstance(scale, (tuple, list))
+        assert len(scale) == 4
+        self.bboxes[:, 0] *= scale[0]
+        self.bboxes[:, 1] *= scale[1]
+        self.bboxes[:, 2] *= scale[2]
+        self.bboxes[:, 3] *= scale[3]
+
+    def add(self, offset):
+        """
+        Args:
+            offset (tuple | List | int): the offset for four coords.
+        """
+        if isinstance(offset, int):
+            offset = to_4tuple(offset)
         assert isinstance(offset, (tuple, list))
         assert len(offset) == 4
         self.bboxes[:, 0] += offset[0]
@@ -97,3 +116,51 @@ class Bboxes:
 
     def __len__(self):
         return len(self.bboxes)
+
+    @classmethod
+    def cat(cls, boxes_list: List["Bboxes"]) -> "Bboxes":
+        """
+        Concatenates a list of Boxes into a single Bboxes
+
+        Arguments:
+            boxes_list (list[Bboxes])
+
+        Returns:
+            Boxes: the concatenated Boxes
+        """
+        assert isinstance(boxes_list, (list, tuple))
+        if len(boxes_list) == 0:
+            return cls(np.empty(0))
+        assert all([isinstance(box, Bboxes) for box in boxes_list])
+
+        if len(boxes_list) == 1:
+            return boxes_list[0]
+        # use torch.cat (v.s. layers.cat) so the returned boxes never share storage with input
+        cat_boxes = cls(np.concatenate([b.bboxes for b in boxes_list], dim=0))
+        return cat_boxes
+
+    def __getitem__(self, item) -> "Bboxes":
+        """
+        Args:
+            item: int, slice, or a BoolArray
+
+        Returns:
+            Boxes: Create a new :class:`Bboxes` by indexing.
+
+        The following usage are allowed:
+
+        1. `new_boxes = boxes[3]`: return a `Bboxes` which contains only one box.
+        2. `new_boxes = boxes[2:10]`: return a slice of boxes.
+        3. `new_boxes = boxes[vector]`, where vector is a torch.BoolTensor
+           with `length = len(boxes)`. Nonzero elements in the vector will be selected.
+
+        Note that the returned Bboxes might share storage with this Bboxes,
+        subject to Pytorch's indexing semantics.
+        """
+        if isinstance(item, int):
+            return Bboxes(self.bboxes[item].view(1, -1))
+        b = self.bboxes[item]
+        assert (
+            b.dim() == 2
+        ), "Indexing on Bboxes with {} failed to return a matrix!".format(item)
+        return Bboxes(b)

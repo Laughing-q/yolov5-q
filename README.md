@@ -11,6 +11,8 @@
 - [ ] dataset
   - [ ] yolo
   - [ ] coco
+  - [ ] copypaste
+  - [ ] multi-scale
 - [X] assigner
 - [ ] head
   - [ ] loss

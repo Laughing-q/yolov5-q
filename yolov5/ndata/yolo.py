@@ -14,6 +14,15 @@ import logging
 
 
 class YOLODetectionDataset(BaseDataset):
+    """YOLO Dataset.
+    Args:
+        img_path (str): image path.
+        pipeline (dict): a dict of image transforms.
+        prefix (str): prefix.
+        rect (bool): rect resize, default: False, set True
+            when eval or inference, keep False when training.
+        batch_size (int): give this argument when rect = True.
+    """
     def __init__(
         self,
         img_path,
@@ -106,7 +115,7 @@ class YOLODetectionDataset(BaseDataset):
             bbox_type="cxcywh",
         )
         if self.rect:
-            results["target_shape"] = self.batch_shapes[self.batch_index[index]]
+            results["rect_shape"] = self.batch_shapes[self.batch_index[index]]
         return self.pipeline(results)
 
     def prepare_test_img(self, index):

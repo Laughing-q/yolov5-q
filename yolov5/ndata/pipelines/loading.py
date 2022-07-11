@@ -32,7 +32,7 @@ class LoadAnnotations:
             annotation. Default: False.
         with_keypoint (bool): Whether to parse and load the keypoint
             annotation. Default: False.
-        denorm (bool): Whether to convert bbox, segmentation and keypoint 
+        denorm (bool): Whether to convert bbox, segmentation and keypoint
             from relative value to absolute value.
             Default: False.
     """
@@ -79,8 +79,8 @@ class LoadAnnotations:
             results = self._load_bboxes(results)
         if self.with_label:
             results = self._load_labels(results)
-        if self.with_mask:
-            results = self._load_masks(results)
+        if self.with_seg:
+            results = self._load_segments(results)
         if self.with_keypoint:
             results = self._load_keypoints(results)
         return results
@@ -99,7 +99,7 @@ class LoadAnnotations:
         num_bboxes = len(bboxes)
         if self.denorm and num_bboxes > 0:
             h, w = results["ori_shape"][:2]
-            bboxes.denormalize(w, h)
+            bboxes.mul([w, h, w, h])
         results["gt_bboxes"] = bboxes
         return results
 
@@ -114,17 +114,17 @@ class LoadAnnotations:
         results["gt_labels"] = results["label"]["gt_classes"].copy()
         return results
 
-    def _load_masks(self, results):
+    def _load_segments(self, results):
         """
         Args:
             results (dict)
         Returns:
             results (dict)
         """
-        # list[np.array(n, 2)] * N, n is the number of points for each instance,
-        # and N is the number of instances.
+        # list[np.array(n, 2)] * num_samples, n is the number of points for each instance,
+        # and `num_samples` is the number of instances.
         segments = results["label"]["gt_segments"].copy()
-        # list[np.array(500, 2)] * N
+        # list[np.array(500, 2)] * num_samples
         if len(segments) > 0:
             segments = resample_segments(segments, n=500)
             # (N, 500, 2)
@@ -143,7 +143,7 @@ class LoadAnnotations:
         Returns:
             results (dict)
         """
-        # (N, nl, 2)
+        # (num_samples, nl, 2)
         keypoints = results["label"]["gt_keypoints"].copy()
         if self.denorm and len(keypoints) > 0:
             h, w = results["ori_shape"][:2]
@@ -151,3 +151,30 @@ class LoadAnnotations:
             keypoints[..., 1] *= h
         results["gt_keypoints"] = keypoints
         return results
+
+
+@PIPELINES.register()
+class FilterAnnotations:
+    def __init__(self, wh_thr=2, ar_thr=20, eps=1e-16) -> None:
+        self.wh_thr = wh_thr
+        self.ar_thr = ar_thr
+        self.eps = eps
+
+    def __call__(self, results):
+        # (4, num_bboxes)
+        bboxes = results["gt_bboxes"].bboxes.T
+        segments = results.get("gt_segments", None)
+        keypoints = results.get("gt_keypoints", None)
+
+        w, h = bboxes[2] - bboxes[0], bboxes[3] - bboxes[1]
+        ar = np.maximum(w / (h + self.eps), h / (w + self.eps))  # aspect ratio
+        index = (w > self.wh_thr) & (h > self.wh_thr) & (ar < self.ar_thr)  # candidates
+
+        bboxes = results["gt_bboxes"][index]
+        results["gt_bboxes"] = bboxes
+        if segments is not None:
+            results["gt_segments"] = segments[index]
+        if segments is not None:
+            results["gt_keypoints"] = keypoints[index]
+        return results
+
