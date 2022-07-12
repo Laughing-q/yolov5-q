@@ -569,7 +569,7 @@ class Yolov5Evaluator:
             device=self.iouv.device,
         )
 
-        if not self.plots:
+        if gt_masksi.shape[1:] != pred_maski.shape[1:]:
             gt_masksi = F.interpolate(
                 gt_masksi.unsqueeze(0),
                 pred_maski.shape[1:],
