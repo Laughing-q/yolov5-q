@@ -104,6 +104,7 @@ class Yolov5Evaluator:
         save_dir=Path(""),
         nosave=False,
         plots=True,
+        max_plot_dets=10,
         mask=False,
         mask_downsample_ratio=1,
     ) -> None:
@@ -121,6 +122,7 @@ class Yolov5Evaluator:
         self.save_dir = save_dir
         self.nosave = nosave
         self.plots = plots
+        self.max_plot_dets = max_plot_dets
         self.mask = mask
         self.mask_downsample_ratio = mask_downsample_ratio
 
@@ -219,7 +221,7 @@ class Yolov5Evaluator:
 
                 # for visualization
                 if self.plots and batch_i < 3 and pred_maski is not None:
-                    self.pred_masks.append(pred_maski.cpu())
+                    self.pred_masks.append(pred_maski[:self.max_plot_dets].cpu())
 
                 # NOTE: eval in training image-size space
                 self.compute_stat(pred, pred_maski, labels, gt_masksi)
@@ -295,7 +297,7 @@ class Yolov5Evaluator:
 
                 # for visualization
                 if self.plots and batch_i < 3 and pred_maski is not None:
-                    self.pred_masks.append(pred_maski.cpu())
+                    self.pred_masks.append(pred_maski[:self.max_plot_dets].cpu())
 
                 # NOTE: eval in training image-size space
                 self.compute_stat(pred, pred_maski, labels, gt_masksi)
@@ -667,6 +669,13 @@ class Yolov5Evaluator:
         # plot ground truth
         f = self.save_dir / f"val_batch{i}_labels.jpg"  # labels
 
+        if masks.shape[1:] != img.shape[2:]:
+            masks = F.interpolate(
+                masks.unsqueeze(0),
+                img.shape[2:],
+                mode="bilinear",
+                align_corners=False,
+            ).squeeze(0)
         Thread(
             target=plot_images_boxes_and_masks,
             args=(img, targets, masks, paths, f, self.names, max(img.shape[2:])),
@@ -687,7 +696,7 @@ class Yolov5Evaluator:
             target=plot_images_boxes_and_masks,
             args=(
                 img,
-                output_to_target(out),
+                output_to_target(out, self.max_plot_dets),
                 pred_masks,
                 paths,
                 f,

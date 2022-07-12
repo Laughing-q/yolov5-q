@@ -88,7 +88,7 @@ class Trainer:
             data=self.data,
             single_cls=self.single_cls,
             save_dir=self.save_dir,
-            plots=False,
+            plots=True,
             mask=self.mask,
             verbose=False,
             mask_downsample_ratio=self.mask_ratio,
