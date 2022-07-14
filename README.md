@@ -7,24 +7,28 @@
 - The weights(`s`, `m`, `l`) will releases when I finish my `yolov5l` training.
 
 ## ✍TODO
-- [ ] add more backbone
 - [ ] dataset
-  - [ ] yolo
+  - [X] yolo
   - [ ] coco
   - [ ] copypaste
   - [ ] multi-scale
+- [ ] model
+  - [X] yolov5
+  - [ ] yolov6
+  - [ ] yolov7
 - [X] assigner
 - [ ] head
-  - [ ] loss
+  - [X] bbox loss
   - [ ] segment head
   - [ ] keypoint head
 - [ ] trainer
+  - [ ] hook
 - [ ] eval(coco)
-- [ ] hook
 - [ ] tensorrt export
+- [ ] add more backbone
 
 - [ ] test
-  - [O] data
+  - [ ] data
     - [X] bboxes
     - [X] segments
     - [ ] keypoints
