@@ -9,6 +9,7 @@ from lqcv.bbox import (
 from typing import List
 from lqcv.utils import to_4tuple
 import numpy as np
+from numbers import Number
 
 # `xyxy` means left top and right bottom
 # `cxcywh` means center x, center y and width, height(yolo format)
@@ -31,21 +32,21 @@ class Bboxes:
         assert format in _formats
         if self.format == format:
             bboxes = self.bboxes
-        if self.format == "xyxy":
+        elif self.format == "xyxy":
             if format == "cxcywh":
-                bboxes = xyxy2xywh(bboxes)
+                bboxes = xyxy2xywh(self.bboxes)
             else:
-                bboxes = xyxy2ltwh(bboxes)
+                bboxes = xyxy2ltwh(self.bboxes)
         elif self.format == "cxcywh":
             if format == "xyxy":
-                bboxes = xywh2xyxy(bboxes)
+                bboxes = xywh2xyxy(self.bboxes)
             else:
-                bboxes = xywh2ltwh(bboxes)
+                bboxes = xywh2ltwh(self.bboxes)
         else:
             if format == "xyxy":
-                bboxes = ltwh2xyxy(bboxes)
+                bboxes = ltwh2xyxy(self.bboxes)
             else:
-                bboxes = ltwh2xywh(bboxes)
+                bboxes = ltwh2xywh(self.bboxes)
 
         return Bboxes(bboxes, format)
 
@@ -91,7 +92,7 @@ class Bboxes:
         Args:
             scale (tuple | List | int): the scale for four coords.
         """
-        if isinstance(scale, int):
+        if isinstance(scale, Number):
             scale = to_4tuple(scale)
         assert isinstance(scale, (tuple, list))
         assert len(scale) == 4
@@ -105,7 +106,7 @@ class Bboxes:
         Args:
             offset (tuple | List | int): the offset for four coords.
         """
-        if isinstance(offset, int):
+        if isinstance(offset, Number):
             offset = to_4tuple(offset)
         assert isinstance(offset, (tuple, list))
         assert len(offset) == 4
@@ -118,7 +119,7 @@ class Bboxes:
         return len(self.bboxes)
 
     @classmethod
-    def cat(cls, boxes_list: List["Bboxes"]) -> "Bboxes":
+    def cat(cls, boxes_list: List["Bboxes"], axis=0) -> "Bboxes":
         """
         Concatenates a list of Boxes into a single Bboxes
 
@@ -136,7 +137,7 @@ class Bboxes:
         if len(boxes_list) == 1:
             return boxes_list[0]
         # use torch.cat (v.s. layers.cat) so the returned boxes never share storage with input
-        cat_boxes = cls(np.concatenate([b.bboxes for b in boxes_list], dim=0))
+        cat_boxes = cls(np.concatenate([b.bboxes for b in boxes_list], axis=axis))
         return cat_boxes
 
     def __getitem__(self, item) -> "Bboxes":
@@ -161,6 +162,6 @@ class Bboxes:
             return Bboxes(self.bboxes[item].view(1, -1))
         b = self.bboxes[item]
         assert (
-            b.dim() == 2
+            b.ndim == 2
         ), "Indexing on Bboxes with {} failed to return a matrix!".format(item)
         return Bboxes(b)

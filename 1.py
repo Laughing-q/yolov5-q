@@ -155,10 +155,10 @@ def polygon_to_bitmap(polygons, height, width):
     bitmap_mask = maskUtils.decode(rle).astype(bool)
     return bitmap_mask
 
-polygon = [np.array([0, 0, 0, 50, 50, 50]), np.array([50, 50, 50, 100, 100, 100])]
+polygon = np.array([0, 0, 0, 50, 50, 50])
 # polygon = np.array([[0, 0, 0, 50, 50, 50], [50, 50, 50, 100, 100, 100]])
 print(list(polygon))
-bitmap = polygon_to_bitmap(list(polygon), 100, 100).astype(np.uint8) * 255
+bitmap = polygon_to_bitmap(polygon, 100, 100).astype(np.uint8) * 255
 print(bitmap)
 cv2.imshow("p", bitmap)
 cv2.waitKey(0)

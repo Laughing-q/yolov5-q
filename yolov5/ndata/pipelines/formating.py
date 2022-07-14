@@ -1,7 +1,6 @@
 from ..builder import PIPELINES
 import torch
 import numpy as np
-import cv2
 import pycocotools.mask as maskUtils
 
 
@@ -67,8 +66,9 @@ class FormatBundle:
             h /= self.mask_ratio
             w /= self.mask_ratio
         # func: `polygon_to_bitmap` need a list
-        masks = [polygon_to_bitmap([segment], h, w) for segment in segments]
-        masks = np.stack(masks, axis=0) if len(masks) else np.zeros(0, h, w)
+        # segment: (n, 2) -> (2n, )
+        masks = [polygon_to_bitmap([segment.reshape(-1)], h, w) for segment in segments]
+        masks = np.stack(masks, axis=0) if len(masks) else np.zeros((0, h, w))
         results["gt_masks"] = torch.from_numpy(masks)
         results.pop("gt_segments")
         return results

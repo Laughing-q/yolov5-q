@@ -23,6 +23,12 @@
 - [ ] hook
 - [ ] tensorrt export
 
+- [ ] test
+  - [O] data
+    - [X] bboxes
+    - [X] segments
+    - [ ] keypoints
+
 ## 🖼️Results
 <div align=center>
 <img src="./assert/000000000632.jpg"/>

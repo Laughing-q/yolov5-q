@@ -38,13 +38,12 @@ class Mosaic:
         self.center_ratio_range = center_ratio_range
         self.pad_value = pad_value
         self.prob = prob
-        if neg_dir is not None:
-            self.img_neg_files = self._get_neg_files(neg_dir)
+        self.img_neg_files = self._get_neg_files(neg_dir)
 
     def __call__(self, results):
         if random.uniform(0, 1) < self.prob:
-            return results
-        return self._mosaic_transform(results)
+            return self._mosaic_transform(results)
+        return results
 
     def get_indexes(self, dataset):
         return [random.randint(0, len(dataset)) for _ in range(3)]
@@ -56,7 +55,7 @@ class Mosaic:
             len(results.get("mix_results", [])) > 0
         ), "There are no other images for mosaic augment."
         mosaic_img = np.full(
-            (self.img_scale[0] * 2, self.img_scale[1] * 2, results["ori_shape"][2]),
+            (self.img_scale[0] * 2, self.img_scale[1] * 2, results["img"].shape[2]),
             self.pad_value,
             dtype=np.uint8,
         )  # base image with 4 tiles
@@ -75,9 +74,9 @@ class Mosaic:
                     results["img"],
                     new_wh=(self.img_scale[1], self.img_scale[0]),
                     keep_ratio=True,
-                    return_scale=True,
                 )
                 results_patch = deepcopy(results)
+                # print(results_patch["gt_bboxes"].bboxes)
             elif num_neg > 0:
                 neg_index = random.choice(range(len(self.img_neg_files)))
                 img = cv2.imread(self.img_neg_files[neg_index])
@@ -191,9 +190,10 @@ class Mosaic:
         final_results["ori_shape"] = (
             self.img_scale[0] * 2,
             self.img_scale[1] * 2,
-            results["ori_shape"][2],
+            mosaic_results[0]["img"].shape[2],
         )
         final_results["img_file"] = "mosaic"
+        final_results["norm"] = mosaic_results[0]["norm"]
         gt_labels = []
         gt_bboxes = []
         gt_segments = []
@@ -201,8 +201,8 @@ class Mosaic:
         for results in mosaic_results:
             gt_labels.append(results["gt_labels"])
             gt_bboxes.append(results["gt_bboxes"])
-            gt_segments.append(results.get("gt_segments"), None)
-            gt_keypoints.append(results.get("gt_keypoints"), None)
+            gt_segments.append(results.get("gt_segments", None))
+            gt_keypoints.append(results.get("gt_keypoints", None))
 
         final_results["gt_labels"] = np.concatenate(gt_labels, 0)
         final_results["gt_bboxes"] = Bboxes.cat(gt_bboxes, 0)
@@ -215,7 +215,7 @@ class Mosaic:
     def _get_neg_files(self, neg_dir):
         """Get negative pictures."""
         img_neg_files = []
-        if os.path.isdir(neg_dir):
+        if neg_dir is not None and os.path.isdir(neg_dir):
             img_neg_files = [os.path.join(neg_dir, i) for i in os.listdir(neg_dir)]
             logging.info(
                 colorstr("Negative dir: ")
@@ -431,14 +431,16 @@ class RandomPerspective:
         segments = results.get("gt_segments", None)
         keypoints = results.get("gt_keypoints", None)
 
-        new_bboxes = self.apply_bboxes(bboxes.bboxes)
+        new_bboxes = self.apply_bboxes(bboxes.bboxes, M)
         # update bboxes if there are segments.
         if segments is not None:
-            new_bboxes, new_segments = self.apply_segments(segments)
+            new_bboxes, new_segments = self.apply_segments(segments, M)
 
         new_bboxes = Bboxes(new_bboxes, format="xyxy")
-        i = self._box_candidates(
-            ori_bboxes=bboxes.mul(scale),
+        # make the bboxes have the same scale with new_bboxes
+        bboxes.mul(scale)
+        i = self._filter_area_threshold(
+            ori_bboxes=bboxes,
             affined_bboxes=new_bboxes,
             labels=labels,
         )
@@ -448,7 +450,7 @@ class RandomPerspective:
             results["gt_segments"] = new_segments
 
         if keypoints is not None:
-            new_keypoints = self.apply_keypoints(keypoints)
+            new_keypoints = self.apply_keypoints(keypoints, M)
             new_keypoints = new_keypoints[i]
             results["gt_keypoints"] = new_keypoints
 
@@ -537,31 +539,36 @@ class RandomFlip:
 
     def __call__(self, results):
         img = results["img"]
-        bboxes = results["gt_bboxes"].convert(format="xyxy").bboxes
+        bboxes = results["gt_bboxes"].convert(format="cxcywh").bboxes
         segments = results.get("gt_segments", None)
         keypoints = results.get("gt_keypoints", None)
+        h, w = img.shape[:2]
+        h = 1 if results["norm"] else h
+        w = 1 if results["norm"] else w
         # Flip up-down
         if self.direction == "vertical" and random.random() < self.prob:
             img = np.flipud(img)
+            img = np.ascontiguousarray(img)
             if len(bboxes):
-                bboxes[:, 1] = 1 - bboxes[:, 1]
+                bboxes[:, 1] = h - bboxes[:, 1]
             if segments is not None:
-                segments[..., 1] = 1 - segments[..., 1]
+                segments[..., 1] = h - segments[..., 1]
                 results["segments"] = segments
             if keypoints is not None:
-                keypoints[..., 1] = 1 - keypoints[..., 1]
+                keypoints[..., 1] = h - keypoints[..., 1]
                 results["keypoints"] = keypoints
         if self.direction == "horizontal" and random.random() < self.prob:
             img = np.fliplr(img)
+            img = np.ascontiguousarray(img)
             if len(bboxes):
-                bboxes[:, 0] = 1 - bboxes[:, 0]
+                bboxes[:, 0] = w - bboxes[:, 0]
             if segments is not None:
                 results["segments"] = segments
-                segments[..., 0] = 1 - segments[..., 0]
+                segments[..., 0] = w - segments[..., 0]
             if keypoints is not None:
                 results["keypoints"] = keypoints
-                keypoints[..., 0] = 1 - keypoints[..., 0]
-        results["gt_bboxes"] = Bboxes(bboxes, format="xyxy")
+                keypoints[..., 0] = w - keypoints[..., 0]
+        results["gt_bboxes"] = Bboxes(bboxes, format="cxcywh").convert("xyxy")
         results["img"] = img
         return results
 
@@ -587,7 +594,9 @@ class Resize:
             return results
 
         img = imrescale(
-            new_wh=(self.img_scale[1], self.img_scale[0]), keep_ratio=self.keep_ratio
+            img,
+            new_wh=(self.img_scale[1], self.img_scale[0]),
+            keep_ratio=self.keep_ratio,
         )
         results["img"] = img
         results = self._update_results(results)
@@ -675,8 +684,8 @@ class Pad:
         left, right = int(round(dw - 0.1)) if self.center_pad else 0, int(
             round(dw + 0.1)
         )
-        im = cv2.copyMakeBorder(
-            im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=self.pad_value
+        img = cv2.copyMakeBorder(
+            img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=self.pad_value
         )  # add border
         results = self._update_results(results, padw=left, padh=top)
         results["img"] = img

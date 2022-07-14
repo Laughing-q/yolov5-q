@@ -6,7 +6,7 @@ from lqcv import build_from_config
 from ..builder import PIPELINES
 
 
-@PIPELINES.register_module()
+@PIPELINES.register()
 class Compose:
     """Compose multiple transforms sequentially.
 

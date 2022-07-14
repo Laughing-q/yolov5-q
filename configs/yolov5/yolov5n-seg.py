@@ -8,8 +8,8 @@ anchors = [
 ]
 
 img_size = (640, 640)
-dataset_type = "YOLODetectionDataset"
-img_path = "/d/dataset/helmet/VOC2028/images"
+dataset_type = "YOLOSegmentDataset"
+img_path = "/d/dataset/COCO/balloon/balloon/images"
 
 # model settings
 model = dict(
@@ -62,7 +62,7 @@ train_dataset = dict(
         prefix="train:",
         pipeline=[
             dict(type="LoadImageFromFile", to_float32=False),
-            dict(type="LoadAnnotations", with_bbox=True),
+            dict(type="LoadAnnotations", with_bbox=True, with_seg=True),
         ],
     ),
     pipeline=train_pipeline,

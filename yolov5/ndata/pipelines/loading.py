@@ -43,19 +43,13 @@ class LoadAnnotations:
         with_bbox=True,
         with_seg=False,
         with_keypoint=False,
-        denorm=False,
-        bbox_type="cxcywh",
+        denorm=True,
     ) -> None:
-        assert bbox_type in [
-            "cxcywh",
-            "xyxy",
-        ], f"Support `bbox_type` 'cxcywh' or 'xyxy', but got {bbox_type}"
         self.with_label = with_label
         self.with_bbox = with_bbox
         self.with_seg = with_seg
         self.with_keypoint = with_keypoint
         self.denorm = denorm
-        self.bbox_type = bbox_type
 
     def __call__(self, results):
         """Call function to load multiple types annotations.
@@ -100,7 +94,7 @@ class LoadAnnotations:
         if self.denorm and num_bboxes > 0:
             h, w = results["ori_shape"][:2]
             bboxes.mul([w, h, w, h])
-        results["gt_bboxes"] = bboxes
+        results["gt_bboxes"] = bboxes.convert("xyxy")
         return results
 
     def _load_labels(self, results):
@@ -111,7 +105,9 @@ class LoadAnnotations:
             results (dict)
         """
         # (N, )
-        results["gt_labels"] = results["label"]["gt_classes"].copy()
+        labels = results["label"]["gt_classes"].copy()
+        # (N, 1)
+        results["gt_labels"] = labels.reshape(-1, 1)
         return results
 
     def _load_segments(self, results):
@@ -124,17 +120,17 @@ class LoadAnnotations:
         # list[np.array(n, 2)] * num_samples, n is the number of points for each instance,
         # and `num_samples` is the number of instances.
         segments = results["label"]["gt_segments"].copy()
-        # list[np.array(500, 2)] * num_samples
         if len(segments) > 0:
+            # list[np.array(500, 2)] * num_samples
             segments = resample_segments(segments, n=500)
             # (N, 500, 2)
-            segments = np.stack(segments, dim=0)
+            segments = np.stack(segments, axis=0)
             if self.denorm:
                 h, w = results["ori_shape"][:2]
                 segments[..., 0] *= w
                 segments[..., 1] *= h
         results["gt_segments"] = segments
-        return segments
+        return results
 
     def _load_keypoints(self, results):
         """
@@ -174,7 +170,7 @@ class FilterAnnotations:
         results["gt_bboxes"] = bboxes
         if segments is not None:
             results["gt_segments"] = segments[index]
-        if segments is not None:
+        if keypoints is not None:
             results["gt_keypoints"] = keypoints[index]
         return results
 

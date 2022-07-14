@@ -1,5 +1,6 @@
 from .base import BaseDataset
 from .data_utils import IMG_FORMATS, exif_size
+from .builder import DATASETS
 from ..utils.segment import segments2boxes
 from multiprocessing.pool import Pool
 from PIL import Image, ImageOps
@@ -13,6 +14,7 @@ import numpy as np
 import logging
 
 
+@DATASETS.register()
 class YOLODetectionDataset(BaseDataset):
     """YOLO Dataset.
     Args:
@@ -105,7 +107,9 @@ class YOLODetectionDataset(BaseDataset):
     def prepare_train_img(self, index):
         img_file = self.img_files[index]
         label = self.labels[index]
-        ori_shape = self.shapes[index]
+        # NOTE: the shapes are from PIL, so the format is wh.
+        w, h = self.shapes[index]
+        ori_shape = (h, w)
         # `norm` means the coords are normalized.
         results = dict(
             img_file=img_file,
@@ -282,6 +286,7 @@ class YOLODetectionDataset(BaseDataset):
         return len(self.img_files)
 
 
+@DATASETS.register()
 class YOLOSegmentDataset(YOLODetectionDataset):
     def __init__(
         self,
@@ -362,6 +367,7 @@ class YOLOSegmentDataset(YOLODetectionDataset):
             return [None, None, None, nm, nf, ne, nc, msg]
 
 
+@DATASETS.register()
 class YOLOKeypointDataset(YOLODetectionDataset):
     def __init__(
         self,
