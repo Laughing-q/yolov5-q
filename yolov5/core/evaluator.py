@@ -201,6 +201,7 @@ class Yolov5Evaluator:
             targets = targets.to(self.device)
             if masks is not None:
                 masks = masks.to(self.device)
+                masks = masks.float()
             out, train_out = self.inference(model, img, targets, masks, compute_loss)
 
             # Statistics per image

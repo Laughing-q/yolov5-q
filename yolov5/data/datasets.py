@@ -79,7 +79,9 @@ def create_dataloader_ori(
     mask_downsample_ratio=1,
 ):
     if rect and shuffle:
-        print("WARNING: --rect is incompatible with DataLoader shuffle, setting shuffle=False")
+        print(
+            "WARNING: --rect is incompatible with DataLoader shuffle, setting shuffle=False"
+        )
         shuffle = False
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     data_load = LoadImagesAndLabelsAndMasks if mask_head else LoadImagesAndLabels
@@ -105,8 +107,12 @@ def create_dataloader_ori(
             dataset.downsample_ratio = mask_downsample_ratio
 
     batch_size = min(batch_size, len(dataset))
-    nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, workers])  # number of workers
-    sampler = distributed.DistributedSampler(dataset, shuffle=shuffle) if rank != -1 else None
+    nw = min(
+        [os.cpu_count(), batch_size if batch_size > 1 else 0, workers]
+    )  # number of workers
+    sampler = (
+        distributed.DistributedSampler(dataset, shuffle=shuffle) if rank != -1 else None
+    )
     loader = DataLoader if image_weights else InfiniteDataLoader
     # Use torch.utils.data.DataLoader() if dataset.properties will update during training else InfiniteDataLoader()
     dataloader = loader(
@@ -145,7 +151,9 @@ def create_dataloader(
     mask_downsample_ratio=1,
 ):
     if rect and shuffle:
-        print("WARNING: --rect is incompatible with DataLoader shuffle, setting shuffle=False")
+        print(
+            "WARNING: --rect is incompatible with DataLoader shuffle, setting shuffle=False"
+        )
         shuffle = False
     data_load = LoadImagesAndLabelsAndMasks if mask_head else LoadImagesAndLabels
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
@@ -171,7 +179,9 @@ def create_dataloader(
             dataset.downsample_ratio = mask_downsample_ratio
 
     batch_size = min(batch_size, len(dataset))
-    nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, workers])  # number of workers
+    nw = min(
+        [os.cpu_count(), batch_size if batch_size > 1 else 0, workers]
+    )  # number of workers
     # sampler = InfiniteSampler(len(dataset), seed=0)
     sampler = (
         distributed.DistributedSampler(dataset, shuffle=shuffle)
@@ -289,8 +299,12 @@ class LoadImagesAndLabels(Dataset):
         self.img_files = self.get_img_files(p, prefix)
         self.label_files = img2label_paths(self.img_files)  # labels
         # Check cache
-        cache_path = (p if p.is_file() else Path(self.label_files[0]).parent).with_suffix(".cache")
-        labels, shapes, segments, img_files, label_files = self.load_cache(cache_path, prefix)
+        cache_path = (
+            p if p.is_file() else Path(self.label_files[0]).parent
+        ).with_suffix(".cache")
+        labels, shapes, segments, img_files, label_files = self.load_cache(
+            cache_path, prefix
+        )
 
         self.segments = segments
         self.labels = list(labels)
@@ -299,7 +313,9 @@ class LoadImagesAndLabels(Dataset):
         self.label_files = label_files  # update
 
         num_imgs = len(shapes)  # number of images
-        batch_index = np.floor(np.arange(num_imgs) / batch_size).astype(np.int)  # batch index
+        batch_index = np.floor(np.arange(num_imgs) / batch_size).astype(
+            np.int
+        )  # batch index
         self.batch_index = batch_index  # batch index of image
         self.num_imgs = num_imgs
         self.indices = range(num_imgs)
@@ -326,7 +342,8 @@ class LoadImagesAndLabels(Dataset):
         if cache_images == "disk":
             self.im_cache_dir = Path(Path(self.img_files[0]).parent.as_posix() + "_npy")
             self.img_npy = [
-                self.im_cache_dir / Path(f).with_suffix(".npy").name for f in self.img_files
+                self.im_cache_dir / Path(f).with_suffix(".npy").name
+                for f in self.img_files
             ]
             self.im_cache_dir.mkdir(parents=True, exist_ok=True)
         gb = 0  # Gigabytes of cached images
@@ -368,12 +385,18 @@ class LoadImagesAndLabels(Dataset):
             else:
                 raise Exception(f"{prefix}{p} does not exist")
             img_files = sorted(
-                [x.replace("/", os.sep) for x in f if x.split(".")[-1].lower() in IMG_FORMATS]
+                [
+                    x.replace("/", os.sep)
+                    for x in f
+                    if x.split(".")[-1].lower() in IMG_FORMATS
+                ]
             )
             # img_files = sorted([x for x in f if x.suffix[1:].lower() in IMG_FORMATS])  # pathlib
             assert img_files, f"{prefix}No images found"
         except Exception as e:
-            raise Exception(f"{prefix}Error loading data from {str(p)}: {e}\nSee {HELP_URL}")
+            raise Exception(
+                f"{prefix}Error loading data from {str(p)}: {e}\nSee {HELP_URL}"
+            )
         return img_files
 
     def get_neg_and_bg(self, neg_dir, bg_dir):
@@ -402,12 +425,16 @@ class LoadImagesAndLabels(Dataset):
                 True,
             )  # load dict
             assert cache["version"] == self.cache_version  # same version
-            assert cache["hash"] == get_hash(self.label_files + self.img_files)  # same hash
+            assert cache["hash"] == get_hash(
+                self.label_files + self.img_files
+            )  # same hash
         except:
             cache, exists = self.cache_labels(cache_path, prefix), False  # cache
 
         # Display cache
-        nf, nm, ne, nc, n = cache.pop("results")  # found, missing, empty, corrupted, total
+        nf, nm, ne, nc, n = cache.pop(
+            "results"
+        )  # found, missing, empty, corrupted, total
         if exists:
             d = f"Scanning '{cache_path}' images and labels... {nf} found, {nm} missing, {ne} empty, {nc} corrupted"
             tqdm(None, desc=prefix + d, total=n, initial=n)  # display cache results
@@ -448,7 +475,8 @@ class LoadImagesAndLabels(Dataset):
                 shapes[i] = [1, 1 / mini]
 
         self.batch_shapes = (
-            np.ceil(np.array(shapes) * self.img_size / self.stride + pad).astype(np.int) * self.stride
+            np.ceil(np.array(shapes) * self.img_size / self.stride + pad).astype(np.int)
+            * self.stride
         )
 
     def cache_labels(self, path=Path("./labels.cache"), prefix=""):
@@ -482,7 +510,9 @@ class LoadImagesAndLabels(Dataset):
                     x[im_file] = [l, shape, segments]
                 if msg:
                     msgs.append(msg)
-                pbar.desc = f"{desc}{nf} found, {nm} missing, {ne} empty, {nc} corrupted"
+                pbar.desc = (
+                    f"{desc}{nf} found, {nm} missing, {ne} empty, {nc} corrupted"
+                )
 
         pbar.close()
         if msgs:
@@ -526,7 +556,11 @@ class LoadImagesAndLabels(Dataset):
 
             # MixUp augmentation
             if random.random() < hyp["mixup"]:
-                img, labels = mixup(img, labels, *load_mosaic(self, random.randint(0, self.num_imgs - 1)))
+                img, labels = mixup(
+                    img,
+                    labels,
+                    *load_mosaic(self, random.randint(0, self.num_imgs - 1)),
+                )
 
         else:
             # Load image
@@ -534,7 +568,9 @@ class LoadImagesAndLabels(Dataset):
 
             # Letterbox
             shape = (
-                self.batch_shapes[self.batch_index[index]] if self.rect else self.img_size
+                self.batch_shapes[self.batch_index[index]]
+                if self.rect
+                else self.img_size
             )  # final letterboxed shape
             img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment)
             shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
@@ -705,7 +741,11 @@ class LoadImagesAndLabelsAndMasks(LoadImagesAndLabels):  # for training/testing
             # TODO: Mixup not support segment for now
             # MixUp augmentation
             if random.random() < hyp["mixup"]:
-                img, labels = mixup(img, labels, *load_mosaic(self, random.randint(0, self.num_imgs - 1)))
+                img, labels = mixup(
+                    img,
+                    labels,
+                    *load_mosaic(self, random.randint(0, self.num_imgs - 1)),
+                )
 
         else:
             # Load image
@@ -713,7 +753,9 @@ class LoadImagesAndLabelsAndMasks(LoadImagesAndLabels):  # for training/testing
 
             # Letterbox
             shape = (
-                self.batch_shapes[self.batch_index[index]] if self.rect else self.img_size
+                self.batch_shapes[self.batch_index[index]]
+                if self.rect
+                else self.img_size
             )  # final letterboxed shape
             img, ratio, pad = letterbox(img, shape, auto=False, scaleup=self.augment)
             shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
@@ -760,13 +802,15 @@ class LoadImagesAndLabelsAndMasks(LoadImagesAndLabels):  # for training/testing
                     [segments[si].reshape(-1)],
                     downsample_ratio=self.downsample_ratio,
                 )
-                masks.append(torch.from_numpy(mask.astype(np.float32)))
+                masks.append(torch.from_numpy(mask))
 
         masks = (
             torch.stack(masks, axis=0)
             if len(masks)
             else torch.zeros(
-                nl, img.shape[0] // self.downsample_ratio, img.shape[1] // self.downsample_ratio
+                nl,
+                img.shape[0] // self.downsample_ratio,
+                img.shape[1] // self.downsample_ratio,
             )
         )
         # TODO: albumentations support
@@ -785,14 +829,14 @@ class LoadImagesAndLabelsAndMasks(LoadImagesAndLabels):  # for training/testing
                 img = np.flipud(img)
                 if nl:
                     labels[:, 2] = 1 - labels[:, 2]
-                    masks = torch.flip(masks, dims=[1])
+                    masks = torch.flip(masks, dims=[0])
 
             # Flip left-right
             if random.random() < hyp["fliplr"]:
                 img = np.fliplr(img)
                 if nl:
                     labels[:, 1] = 1 - labels[:, 1]
-                    masks = torch.flip(masks, dims=[2])
+                    masks = torch.flip(masks, dims=[1])
 
             # Cutouts
             # labels = cutout(img, labels, p=0.5)
@@ -836,7 +880,9 @@ def load_image(self, i):
             im = cv2.resize(
                 im,
                 (int(w0 * r), int(h0 * r)),
-                interpolation=cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR,
+                interpolation=cv2.INTER_AREA
+                if r < 1 and not self.augment
+                else cv2.INTER_LINEAR,
             )
         return im, (h0, w0), im.shape[:2]  # im, hw_original, hw_resized
     else:
@@ -884,7 +930,9 @@ def load_mosaic(self, index, return_seg=False):
     # YOLOv5 4-mosaic loader. Loads 1 image + 3 random images into a 4-image mosaic
     labels4, segments4 = [], []
     s = self.img_size
-    yc, xc = [int(random.uniform(-x, 2 * s + x)) for x in self.mosaic_border]  # mosaic center x, y
+    yc, xc = [
+        int(random.uniform(-x, 2 * s + x)) for x in self.mosaic_border
+    ]  # mosaic center x, y
 
     num_neg = random.randint(0, 2) if len(self.img_neg_files) else 0
     # 3 additional image indices
@@ -960,7 +1008,9 @@ def load_mosaic(self, index, return_seg=False):
     # img4, labels4 = replicate(img4, labels4)  # replicate
 
     # Augment
-    img4, labels4, segments4 = copy_paste(img4, labels4, segments4, p=self.hyp["copy_paste"])
+    img4, labels4, segments4 = copy_paste(
+        img4, labels4, segments4, p=self.hyp["copy_paste"]
+    )
     results = random_perspective(
         img4,
         labels4,
@@ -1030,7 +1080,9 @@ def load_mosaic9(self, index):
         hp, wp = h, w  # height, width previous
 
     # Offset
-    yc, xc = [int(random.uniform(0, s)) for _ in self.mosaic_border]  # mosaic center x, y
+    yc, xc = [
+        int(random.uniform(0, s)) for _ in self.mosaic_border
+    ]  # mosaic center x, y
     img9 = img9[yc : yc + 2 * s, xc : xc + 2 * s]
 
     # Concat/clip labels
@@ -1060,7 +1112,9 @@ def load_mosaic9(self, index):
     return img9, labels9
 
 
-def dataset_stats(path="coco128.yaml", autodownload=False, verbose=False, profile=False, hub=False):
+def dataset_stats(
+    path="coco128.yaml", autodownload=False, verbose=False, profile=False, hub=False
+):
     """Return dataset statistics dictionary with images and instances counts per split per class
     To run in parent directory: export PYTHONPATH="$PWD/yolov5"
     Usage1: from utils.datasets import *; dataset_stats('coco128.yaml', autodownload=True)
@@ -1160,7 +1214,9 @@ def dataset_stats(path="coco128.yaml", autodownload=False, verbose=False, profil
             np.save(file, stats)
             t2 = time.time()
             x = np.load(file, allow_pickle=True)
-            print(f"stats.npy times: {time.time() - t2:.3f}s read, {t2 - t1:.3f}s write")
+            print(
+                f"stats.npy times: {time.time() - t2:.3f}s read, {t2 - t1:.3f}s write"
+            )
 
             file = stats_path.with_suffix(".json")
             t1 = time.time()
@@ -1169,7 +1225,9 @@ def dataset_stats(path="coco128.yaml", autodownload=False, verbose=False, profil
             t2 = time.time()
             with open(file, "r") as f:
                 x = json.load(f)  # load hyps dict
-            print(f"stats.json times: {time.time() - t2:.3f}s read, {t2 - t1:.3f}s write")
+            print(
+                f"stats.json times: {time.time() - t2:.3f}s read, {t2 - t1:.3f}s write"
+            )
 
     # Save, print and return
     if hub:

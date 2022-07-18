@@ -125,7 +125,7 @@ class Trainer:
             loss, loss_items = self.compute_loss(
                 pred,
                 targets.to(self.device),
-                masks=masks.to(self.device) if self.mask else masks,
+                masks=masks.to(self.device).float() if self.mask else masks,
             )  # loss scaled by batch_size
             if self.rank != -1:
                 loss *= self.world_size  # gradient averaged between devices in DDP mode
