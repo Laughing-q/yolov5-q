@@ -46,6 +46,7 @@ for orientation in ExifTags.TAGS.keys():
     if ExifTags.TAGS[orientation] == "Orientation":
         break
 
+
 def get_hash(paths):
     # Returns a single hash value of a list of paths (files or dirs)
     size = sum(os.path.getsize(p) for p in paths if os.path.exists(p))  # sizes
@@ -103,10 +104,7 @@ def polygon2mask(img_size, polygons, color=1, downsample_ratio=1):
         polygons (np.ndarray): [N, M], N is the number of polygons,
             M is the number of points(Be divided by 2).
     """
-    img_size = (
-            img_size[0] // downsample_ratio, 
-            img_size[1] // downsample_ratio
-            )
+    img_size = (img_size[0] // downsample_ratio, img_size[1] // downsample_ratio)
     mask = np.zeros(img_size, dtype=np.uint8)
     polygons = np.asarray(polygons) / downsample_ratio
     polygons = polygons.astype(np.int32)
@@ -136,15 +134,16 @@ def polygon2mask_downsample(img_size, polygons, color=1, downsample_ratio=1):
     shape = polygons.shape
     polygons = polygons.reshape(shape[0], -1, 2)
     cv2.fillPoly(mask, polygons, color=color)
-    nh, nw = (
-            img_size[0] // downsample_ratio, 
-            img_size[1] // downsample_ratio
-            )
+    nh, nw = (img_size[0] // downsample_ratio, img_size[1] // downsample_ratio)
     mask = cv2.resize(mask, (nw, nh))
     return mask
 
+
 def polygon2mask_downsamples(img_size, segments, downsample_ratio=1):
-    masks = np.zeros(img_size, dtype=np.uint8)
+    masks = np.zeros(
+        (img_size[0] // downsample_ratio, img_size[1] // downsample_ratio),
+        dtype=np.uint8,
+    )
     for si in range(len(segments)):
         mask = polygon2mask_downsample(
             img_size,
@@ -179,6 +178,7 @@ def flatten_recursive(path="../datasets/coco128"):
     create_folder(new_path)
     for file in tqdm(glob.glob(str(Path(path)) + "/**/*.*", recursive=True)):
         shutil.copyfile(file, new_path / Path(file).name)
+
 
 def extract_boxes(
     path="../datasets/coco128",
@@ -318,7 +318,9 @@ def verify_image_label(args):
                 assert (
                     l[:, 1:] <= 1
                 ).all(), f"non-normalized or out of bounds coordinates {l[:, 1:][l[:, 1:] > 1]}"
-                l, idx = np.unique(l, axis=0, return_index=True)  # remove duplicate rows
+                l, idx = np.unique(
+                    l, axis=0, return_index=True
+                )  # remove duplicate rows
                 # NOTE: `np.unique` will change the order of `l`, so adjust the segments order too.
                 segments = [segments[i] for i in idx] if len(segments) > 0 else segments
                 if len(l) < nl:
@@ -334,5 +336,3 @@ def verify_image_label(args):
         nc = 1
         msg = f"{prefix}WARNING: {im_file}: ignoring corrupt image/label: {e}"
         return [None, None, None, None, nm, nf, ne, nc, msg]
-
-
