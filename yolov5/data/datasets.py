@@ -796,9 +796,11 @@ class LoadImagesAndLabelsAndMasks(LoadImagesAndLabels):  # for training/testing
             labels[:, 1:5] = xyxy2xywhn(
                 labels[:, 1:5], w=img.shape[1], h=img.shape[0], clip=True, eps=1e-3
             )
-            masks = polygon2mask_downsamples(
+            # NOTE: sort the mask to alleviate overlapping issue
+            masks, sorted_idx = polygon2mask_downsamples(
                 img.shape[:2], segments, downsample_ratio=self.downsample_ratio
             )
+            labels = labels[sorted_idx]
 
         # (640, 640), uint8
         masks = (
