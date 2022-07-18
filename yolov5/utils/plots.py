@@ -745,12 +745,23 @@ def plot_images_and_masks(
             img = cv2.resize(img, (w, h))
 
         mosaic[block_y : block_y + h, block_x : block_x + w, :] = img
+
         if len(targets) > 0:
             idx = (targets[:, 0]).astype(int)
             image_targets = targets[idx == i]
-            # print(targets.shape)
-            # print(masks.shape)
-            image_masks = masks[idx == i]
+
+            # convert masks (640, 640) -> (n, 640, 640)
+            # NOTE: add this transformation to be 
+            # compatible with the new masks and the old masks,
+            # cause plotting pred_masks is still thd old way.
+            if masks.max() > 1.0:
+                image_masks = masks[i]
+                nl = len(image_targets)
+                index = np.arange(nl).reshape(nl, 1, 1) + 1
+                image_masks = np.repeat(image_masks[None], nl, axis=0)
+                image_masks = np.where(image_masks == index, 1.0, 0.0)
+            else:
+                image_masks = masks[idx == i]
             # mosaic_masks
             # mosaic_masks[block_y:block_y + h,
             #              block_x:block_x + w, :] = image_masks

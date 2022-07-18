@@ -143,6 +143,20 @@ def polygon2mask_downsample(img_size, polygons, color=1, downsample_ratio=1):
     mask = cv2.resize(mask, (nw, nh))
     return mask
 
+def polygon2mask_downsamples(img_size, segments, downsample_ratio=1):
+    masks = np.zeros(img_size, dtype=np.uint8)
+    for si in range(len(segments)):
+        mask = polygon2mask_downsample(
+            img_size,
+            [segments[si].reshape(-1)],
+            downsample_ratio=downsample_ratio,
+            color=si + 1,
+        )
+        masks = masks + mask
+        masks = np.clip(masks, a_min=0, a_max=si + 1)
+    return masks
+
+
 def img2label_paths(img_paths):
     # Define label paths as a function of image paths
     sa, sb = (

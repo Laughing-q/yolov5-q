@@ -210,14 +210,14 @@ class Yolov5Evaluator:
 
                 # eval in every image level
                 labels = targets[targets[:, 0] == si, 1:]
-                gt_masksi = masks[targets[:, 0] == si] if masks is not None else None
+                gt_masksi = masks[si] if masks is not None else None
 
                 # get predition masks
                 proto_out = train_out[1][si] if isinstance(train_out, tuple) else None
                 pred_maski = self.get_predmasks(
                     pred,
                     proto_out,
-                    gt_masksi.shape[1:] if gt_masksi is not None else None,
+                    gt_masksi.shape if gt_masksi is not None else None,
                 )
 
                 # for visualization
@@ -572,6 +572,12 @@ class Yolov5Evaluator:
             device=self.iouv.device,
         )
 
+        # convert masks (640, 640) -> (n, 640, 640)
+        nl = len(labels)
+        index = torch.arange(nl, device=gt_masksi.device).view(nl, 1, 1) + 1
+        gt_masksi = gt_masksi.repeat(nl, 1, 1)
+        gt_masksi = torch.where(gt_masksi == index, 1.0, 0.0)
+
         if gt_masksi.shape[1:] != pred_maski.shape[1:]:
             gt_masksi = F.interpolate(
                 gt_masksi.unsqueeze(0),
@@ -672,7 +678,7 @@ class Yolov5Evaluator:
 
         if masks is not None and masks.shape[1:] != img.shape[2:]:
             masks = F.interpolate(
-                masks.unsqueeze(0),
+                masks.unsqueeze(0).float(),
                 img.shape[2:],
                 mode="bilinear",
                 align_corners=False,

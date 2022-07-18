@@ -1,6 +1,6 @@
 import logging
 import math
-import os
+import cv2
 import random
 import time
 from copy import deepcopy
@@ -51,7 +51,9 @@ from .evaluator import Yolov5Evaluator
 
 
 class Trainer:
-    def __init__(self, hyp, opt, device, callbacks, logger, rank, local_rank, world_size) -> None:
+    def __init__(
+        self, hyp, opt, device, callbacks, logger, rank, local_rank, world_size
+    ) -> None:
         self.hyp = hyp
         self.opt = opt
         self.save_dir = Path(opt.save_dir)
@@ -157,14 +159,19 @@ class Trainer:
         - loss, cause `ComputeLoss` need some attr in model.
         """
         w = self.save_dir / "weights"  # weights dir
-        self.last, self.best, self.last_mosaic = w / "last.pt", w / "best.pt", w / "last_mosaic.pt"
+        self.last, self.best, self.last_mosaic = (
+            w / "last.pt",
+            w / "best.pt",
+            w / "last_mosaic.pt",
+        )
 
         # Hyperparameters
         if isinstance(self.hyp, str):
             with open(self.hyp, errors="ignore") as f:
                 hyp = OmegaConf.load(f)  # load hyps dict
         self.logger.info(
-            colorstr("hyperparameters: ") + ", ".join(f"{k}={v}" for k, v in hyp.items())
+            colorstr("hyperparameters: ")
+            + ", ".join(f"{k}={v}" for k, v in hyp.items())
         )
 
         # Save run settings
@@ -207,7 +214,9 @@ class Trainer:
         self.imgsz = check_img_size(
             self.opt.imgsz, self.stride, floor=self.stride * 2
         )  # verify imgsz is gs-multiple
-        nl = self.model.model[-1].nl  # number of detection layers (used for scaling hyp['obj'])
+        nl = self.model.model[
+            -1
+        ].nl  # number of detection layers (used for scaling hyp['obj'])
 
         # initialize dataloader
         self._initialize_loader()
@@ -226,7 +235,9 @@ class Trainer:
 
         # SyncBatchNorm
         if self.opt.sync_bn and self.cuda and self.rank != -1:
-            self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model).to(self.device)
+            self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model).to(
+                self.device
+            )
             self.logger.info("Using SyncBatchNorm()")
 
         # Trainloader
@@ -440,10 +451,10 @@ class Trainer:
         # Log
         if self.rank not in [-1, 0]:
             return
-        self.mloss = (self.mloss * self.iter + loss_items) / (self.iter + 1)  # update mean losses
-        mem = (
-            f"{torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0:.3g}G"  # (GB)
-        )
+        self.mloss = (self.mloss * self.iter + loss_items) / (
+            self.iter + 1
+        )  # update mean losses
+        mem = f"{torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0:.3g}G"  # (GB)
         self.pbar.set_description(
             ("%10s" * 2 + "%10.4g" * (6 if self.mask else 5))
             % (
@@ -458,7 +469,7 @@ class Trainer:
         # for plots
         if self.mask_ratio != 1:
             masks = F.interpolate(
-                masks[None, :],
+                masks.unsqueeze(0).float(),
                 (self.imgsz, self.imgsz),
                 mode="bilinear",
                 align_corners=False,
@@ -479,7 +490,9 @@ class Trainer:
 
     @property
     def progress_in_iter(self):
-        return self.iter + self.batches * self.epoch  # number integrated batches (since train start)
+        return (
+            self.iter + self.batches * self.epoch
+        )  # number integrated batches (since train start)
 
     def resume_train(self, ckpt):
         # Optimizer
@@ -568,20 +581,25 @@ class Trainer:
                 self.device
             )  # create
             exclude = (
-                ["anchor"] if (self.cfg or self.hyp.get("anchors")) and not self.resume else []
+                ["anchor"]
+                if (self.cfg or self.hyp.get("anchors")) and not self.resume
+                else []
             )  # exclude keys
             csd = ckpt["model"].float().state_dict()  # checkpoint state_dict as FP32
-            csd = intersect_dicts(csd, self.model.state_dict(), exclude=exclude)  # intersect
+            csd = intersect_dicts(
+                csd, self.model.state_dict(), exclude=exclude
+            )  # intersect
             self.model.load_state_dict(csd, strict=False)  # load
             self.logger.info(
                 f"Transferred {len(csd)}/{len(self.model.state_dict())} items from {self.weights}"
             )  # report
             del csd
         else:
-            self.model = Model(self.cfg, ch=3, nc=nc, anchors=self.hyp.get("anchors")).to(
+            self.model = Model(
+                self.cfg, ch=3, nc=nc, anchors=self.hyp.get("anchors")
+            ).to(
                 self.device
             )  # create
-
 
         # Freeze
         freeze = [f"model.{x}." for x in range(self.freeze)]  # layers to freeze
@@ -609,7 +627,9 @@ class Trainer:
                 g2.append(v.bias)
             if isinstance(v, nn.BatchNorm2d):  # weight (no decay)
                 g0.append(v.weight)
-            elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):  # weight (with decay)
+            elif hasattr(v, "weight") and isinstance(
+                v.weight, nn.Parameter
+            ):  # weight (with decay)
                 g1.append(v.weight)
 
         if self.opt.adam:
@@ -617,7 +637,9 @@ class Trainer:
                 g0, lr=self.hyp["lr0"], betas=(self.hyp["momentum"], 0.999)
             )  # adjust beta1 to momentum
         else:
-            optimizer = SGD(g0, lr=self.hyp["lr0"], momentum=self.hyp["momentum"], nesterov=True)
+            optimizer = SGD(
+                g0, lr=self.hyp["lr0"], momentum=self.hyp["momentum"], nesterov=True
+            )
 
         optimizer.add_param_group(
             {"params": g1, "weight_decay": self.hyp["weight_decay"]}
@@ -632,13 +654,12 @@ class Trainer:
         # Scheduler
         if self.opt.linear_lr:
             self.lf = (
-                lambda x: (1 - x / (self.epochs - 1)) * (1.0 - self.hyp["lrf"]) + self.hyp["lrf"]
+                lambda x: (1 - x / (self.epochs - 1)) * (1.0 - self.hyp["lrf"])
+                + self.hyp["lrf"]
             )  # linear
         else:
             self.lf = one_cycle(1, self.hyp["lrf"], self.epochs)  # cosine 1->hyp['lrf']
-        scheduler = lr_scheduler.LambdaLR(
-            optimizer, lr_lambda=self.lf
-        ) 
+        scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=self.lf)
         # plot_lr_scheduler(optimizer, scheduler, self.epochs)
         return optimizer, scheduler
 
@@ -657,7 +678,9 @@ class Trainer:
     def set_parameters(self, nc, nl, names):
         self.hyp["box"] *= 3.0 / nl  # scale to layers
         self.hyp["cls"] *= nc / 80.0 * 3.0 / nl  # scale to classes and layers
-        self.hyp["obj"] *= (self.imgsz / 640) ** 2 * 3.0 / nl  # scale to image size and layers
+        self.hyp["obj"] *= (
+            (self.imgsz / 640) ** 2 * 3.0 / nl
+        )  # scale to image size and layers
         self.hyp["label_smoothing"] = self.opt.label_smoothing
         self.model.nc = nc  # attach number of classes to model
         self.model.hyp = self.hyp  # attach hyperparameters to model
@@ -672,7 +695,9 @@ class Trainer:
         # P(B), R(B), mAP@.5(B), mAP@.5-.95(B),
         # P(M), R(M), mAP@.5(M), mAP@.5-.95(M),
         # val_loss(box, seg, obj, cls)
-        self.results = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) if self.mask else (0, 0, 0, 0, 0, 0, 0)
+        self.results = (
+            (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) if self.mask else (0, 0, 0, 0, 0, 0, 0)
+        )
         self.plot_idx = [0, 1, 2]
         self.plots = True  # create plots
         self.t0 = time.time()
@@ -692,7 +717,12 @@ class Trainer:
 
     def _warmup(self):
         xi = [0, self.warmup_iters]  # x interp
-        self.accumulate = max(1, np.interp(self.progress_in_iter, xi, [1, self.nbs / self.batch_size]).round())
+        self.accumulate = max(
+            1,
+            np.interp(
+                self.progress_in_iter, xi, [1, self.nbs / self.batch_size]
+            ).round(),
+        )
         for j, x in enumerate(self.optimizer.param_groups):
             # bias lr falls from 0.1 to lr0, all other lrs rise from 0.0 to lr0
             x["lr"] = np.interp(
@@ -705,7 +735,9 @@ class Trainer:
             )
             if "momentum" in x:
                 x["momentum"] = np.interp(
-                    self.progress_in_iter, xi, [self.hyp["warmup_momentum"], self.hyp["momentum"]]
+                    self.progress_in_iter,
+                    xi,
+                    [self.hyp["warmup_momentum"], self.hyp["momentum"]],
                 )
 
     def _multi_scale(self, imgs):
@@ -719,7 +751,9 @@ class Trainer:
             ns = [
                 math.ceil(x * sf / self.stride) * self.stride for x in imgs.shape[2:]
             ]  # new shape (stretched to gs-multiple)
-            imgs = nn.functional.interpolate(imgs, size=ns, mode="bilinear", align_corners=False)
+            imgs = nn.functional.interpolate(
+                imgs, size=ns, mode="bilinear", align_corners=False
+            )
         return imgs
 
     def _initialize_loader(self):

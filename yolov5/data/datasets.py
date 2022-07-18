@@ -37,7 +37,7 @@ from .data_utils import (
     IMG_FORMATS,
     HELP_URL,
     NUM_THREADS,
-    polygon2mask_downsample,
+    polygon2mask_downsamples,
     get_hash,
     img2label_paths,
     verify_image_label,
@@ -796,19 +796,15 @@ class LoadImagesAndLabelsAndMasks(LoadImagesAndLabels):  # for training/testing
             labels[:, 1:5] = xyxy2xywhn(
                 labels[:, 1:5], w=img.shape[1], h=img.shape[0], clip=True, eps=1e-3
             )
-            for si in range(len(segments)):
-                mask = polygon2mask_downsample(
-                    img.shape[:2],
-                    [segments[si].reshape(-1)],
-                    downsample_ratio=self.downsample_ratio,
-                )
-                masks.append(torch.from_numpy(mask))
+            masks = polygon2mask_downsamples(
+                img.shape[:2], segments, downsample_ratio=self.downsample_ratio
+            )
 
+        # (640, 640), uint8
         masks = (
-            torch.stack(masks, axis=0)
+            torch.from_numpy(masks)
             if len(masks)
             else torch.zeros(
-                nl,
                 img.shape[0] // self.downsample_ratio,
                 img.shape[1] // self.downsample_ratio,
             )
@@ -854,7 +850,7 @@ class LoadImagesAndLabelsAndMasks(LoadImagesAndLabels):  # for training/testing
     @staticmethod
     def collate_fn(batch):
         img, label, path, shapes, masks = zip(*batch)  # transposed
-        batched_masks = torch.cat(masks, 0)
+        batched_masks = torch.stack(masks, 0)
         # print(batched_masks.shape)
         # print('batched_masks:', (batched_masks > 0).sum())
         for i, l in enumerate(label):
