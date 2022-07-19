@@ -286,14 +286,14 @@ class Yolov5Evaluator:
 
                 # eval in every image level
                 labels = targets[targets[:, 0] == si, 1:]
-                gt_masksi = masks[targets[:, 0] == si] if masks is not None else None
+                gt_masksi = masks[si] if masks is not None else None
 
                 # get predition masks
                 proto_out = train_out[1][si] if isinstance(train_out, tuple) else None
                 pred_maski = self.get_predmasks(
                     pred,
                     proto_out,
-                    gt_masksi.shape[1:] if gt_masksi is not None else None,
+                    gt_masksi.shape if gt_masksi is not None else None,
                 )
 
                 # for visualization

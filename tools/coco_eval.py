@@ -2,6 +2,7 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from yolov5.core import Yolov5Evaluator
 from yolov5.utils.plots import plot_one_box
+from yolov5.utils.general import coco80_to_coco91_class
 import pycocotools.mask as mask_util
 import json
 import cv2
@@ -17,8 +18,8 @@ from pathlib import Path
 if __name__ == "__main__":
 
     # evaluator = Yolov5Evaluator(
-    #     data="./data/coco.yaml",
-    #     conf_thres=0.001,
+    #     data="./data/coco_local.yaml",
+    #     conf_thres=0.01,
     #     iou_thres=0.6,
     #     exist_ok=False,
     #     half=True,
@@ -26,22 +27,30 @@ if __name__ == "__main__":
     # )
     #
     # evaluator.run(
-    #     weights="./runs/seg0301/coco_m/weights/best.pt", batch_size=2, imgsz=640, save_json=True
+    #     weights="./runs/coco_s_new3/weights/best.pt", batch_size=8, imgsz=640, save_json=True
     #     # weights="./weights/yolov5s.pt", batch_size=16, imgsz=640, save_json=True
     # )
-
-    anno = COCO('/dataset/dataset/COCO/annotations/instances_val2017.json')  # init annotations api
-    pred = anno.loadRes('./runs/val/exp/predictions.json')  # init predictions api
+    #
+    anno = COCO('/d/dataset/COCO/annotations/instances_val2017.json')  # init annotations api
+    pred = anno.loadRes('./predictions.json')  # init predictions api
     # eval = COCOeval(anno, pred, 'bbox')
     eval = COCOeval(anno, pred)
-    eval.params.imgIds = [int(Path(x).stem) for x in os.listdir('./data/coco/images/val2017')]  # image IDs to evaluate
+    # eval.params.imgIds = [int(Path(x).stem) for x in os.listdir('/d/dataset/COCO/images/val2017')]  # image IDs to evaluate
     eval.evaluate()
     eval.accumulate()
     eval.summarize()
 
-    # with open('/home/laughing/code/yolov5-q/runs/val/exp/predictions.json', 'r') as f:
+    # new_predictions = []
+    # with open('./runs/val/exp/predictions.json', 'r') as f:
     #     preditions = json.load(f)
-    # img_root = '/home/laughing/code/yolov5-q/data/coco/images/val2017'
+    # for p in preditions:
+    #     category_id = int(p["category_id"])
+    #     p["category_id"] = coco80_to_coco91_class()[category_id]
+    #     new_preditions.append(p)
+    #
+    # with open("predictions.json", "w") as f:
+    #     json.dump(new_predictions, f)
+    # img_root = '/d/dataset/COCO/images/val2017'
     # print(preditions[0])
     # for p in preditions:
     #     box = p['bbox']
@@ -55,7 +64,7 @@ if __name__ == "__main__":
     #     img[mask.astype(bool)] = img[mask.astype(bool)] * 0.5 + np.array([0, 0, 255]) * 0.5
     #     cv2.imshow('p', img)
     #     # cv2.imshow('m', mask * 255)
-    #     print(box, p['score'])
+    #     print(box, p['score'], p['category_id'], img_name)
     #     if cv2.waitKey(0) == ord('q'):
     #         break
     #
