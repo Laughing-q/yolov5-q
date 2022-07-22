@@ -12,6 +12,8 @@
   - [ ] coco
   - [ ] copypaste
   - [ ] multi-scale
+  - [ ] sampler
+  - [ ] dataloader
 - [ ] model
   - [X] yolov5
   - [ ] yolov6
@@ -147,3 +149,4 @@ python tools/detect.py --source img/dir/video/stream --weights weights/yolov5s.p
 - [https://github.com/ultralytics/yolov5](https://github.com/ultralytics/yolov5)
 - [https://github.com/Megvii-BaseDetection/YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)
 - [https://github.com/dbolya/yolact](https://github.com/dbolya/yolact)
+- [https://github.com/open-mmlab/mmdetection](https://github.com/open-mmlab/mmdetection)

@@ -10,6 +10,9 @@ anchors = [
 img_size = (640, 640)
 dataset_type = "YOLODetectionDataset"
 img_path = "/d/dataset/helmet/VOC2028/images"
+batch_size = 8
+normal_batch_size = 64
+accumulate = max(round(normal_batch_size / batch_size), 1)
 
 # model settings
 model = dict(
@@ -66,4 +69,13 @@ train_dataset = dict(
         ],
     ),
     pipeline=train_pipeline,
+)
+
+scale_w = batch_size * accumulate / normal_batch_size  # scale weight_decay
+optimizer = dict(
+    type="SGD",
+    lr=0.01,
+    momentum=0.9,
+    weight_decay=5e-4 * scale_w,
+    nesterov=True,
 )
